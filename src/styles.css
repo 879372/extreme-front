@@ -1,4 +1,4 @@
-@import "tailwindcss";
+body{font-family:Inter,Manrope,Arial,sans-serif}
 
 :root { --ink:#080b0c; --surface:#0e1314; --surface-2:#13191a; --line:rgba(222,255,247,.13); --muted:#8a9996; --white:#f1f7f5; --acid:#5ff4c8; --violet:#8174ff; }
 *{box-sizing:border-box} html{scroll-behavior:smooth} body{margin:0;background:var(--ink);color:var(--white);font-family:var(--font-geist),Arial,sans-serif} button,input,select{font:inherit} button,a{color:inherit} a{text-decoration:none} button{cursor:pointer}.shell{width:min(1180px,calc(100% - 48px));margin-inline:auto}.public-site{overflow:hidden;background:radial-gradient(circle at 78% 14%,rgba(46,107,94,.15),transparent 27%),var(--ink)}

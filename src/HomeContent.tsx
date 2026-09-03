@@ -1,5 +1,3 @@
-"use client";
-
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import gsap from "gsap";
@@ -300,7 +298,7 @@ export function Dashboard({ onExit }: { onExit: () => void }) {
     };
     try {
       const token = sessionStorage.getItem("extreme_auth_token");
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/clients/`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Token ${token}` }, body: JSON.stringify({ ...client, monthly_value: client.value, full_name: client.name }) });
+      const response = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:8000"}/api/clients/`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Token ${token}` }, body: JSON.stringify({ ...client, monthly_value: client.value, full_name: client.name }) });
       if (response.ok) { const saved = await response.json(); client.id = saved.id; }
     } catch { /* local preview stays functional without the API */ }
     setClients(prev => [client, ...prev]);
