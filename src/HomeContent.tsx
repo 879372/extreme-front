@@ -24,7 +24,7 @@ type Client = {
   id: number;
   full_name: string;
   company: string;
-  email: string;
+  email: string | null;
   phone: string;
   service: string;
   status: "Ativo" | "Onboarding" | "Pausado";
@@ -37,6 +37,24 @@ type Client = {
 };
 
 const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000";
+
+function formatPhone(value: string) {
+  const digits = value.replace(/\D/g, "").slice(0, 11);
+  if (digits.length <= 2) return digits.replace(/^(\d{0,2})/, "($1");
+  if (digits.length <= 6) return digits.replace(/^(\d{2})(\d+)/, "($1) $2");
+  if (digits.length <= 10) return digits.replace(/^(\d{2})(\d{4})(\d+)/, "($1) $2-$3");
+  return digits.replace(/^(\d{2})(\d{5})(\d+)/, "($1) $2-$3");
+}
+
+function formatBRLInput(value: string) {
+  const cents = Number(value.replace(/\D/g, "")) / 100;
+  return cents.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+function parseBRL(value: FormDataEntryValue | null) {
+  const digits = String(value || "").replace(/\D/g, "");
+  return (Number(digits) / 100).toFixed(2);
+}
 
 const services = [
   { icon: Database, number: "01", title: "Sistema sob medida", text: "Um sistema feito para o jeito que sua empresa trabalha: clientes, vendas, estoque, serviços e financeiro em um só lugar." },
@@ -282,6 +300,7 @@ function PublicSite() {
 }
 
 export function Dashboard({ onExit }: { onExit: () => void }) {
+  const [activeSection, setActiveSection] = useState<"overview" | "clients" | "automations">("overview");
   const [clients, setClients] = useState<Client[]>([]);
   const [query, setQuery] = useState("");
   const [modal, setModal] = useState(false);
@@ -324,7 +343,8 @@ export function Dashboard({ onExit }: { onExit: () => void }) {
     try {
       const token = sessionStorage.getItem("extreme_auth_token");
       const company = String(form.get("company"));
-      const response = await fetch(`${apiUrl}/api/clients/`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Token ${token}` }, body: JSON.stringify({ full_name: form.get("name"), company, email: form.get("email"), phone: form.get("phone"), service: form.get("service"), monthly_value: form.get("value"), system_url: form.get("system_url"), billing_day: Number(form.get("billing_day")), billing_messages_enabled: form.get("billing_messages_enabled") === "on", status: "Onboarding" }) });
+      const email = String(form.get("email") || "").trim();
+      const response = await fetch(`${apiUrl}/api/clients/`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Token ${token}` }, body: JSON.stringify({ full_name: form.get("name"), company, email: email || null, phone: form.get("phone"), service: form.get("service"), monthly_value: parseBRL(form.get("value")), system_url: form.get("system_url"), billing_day: Number(form.get("billing_day")), billing_messages_enabled: form.get("billing_messages_enabled") === "on", status: "Onboarding" }) });
       if (response.status === 401 || response.status === 403) { onExit(); return; }
       if (!response.ok) {
         const details = await response.json().catch(() => null);
@@ -348,9 +368,9 @@ export function Dashboard({ onExit }: { onExit: () => void }) {
       <aside className="sidebar">
         <Brand />
         <div className="side-label">OPERAÇÃO</div>
-        <button className="side-item active"><CircleGauge size={18}/> Visão geral</button>
-        <button className="side-item"><Network size={18}/> Clientes <span>{clients.length}</span></button>
-        <button className="side-item"><Bot size={18}/> Automações</button>
+        <button className={`side-item ${activeSection === "overview" ? "active" : ""}`} onClick={() => setActiveSection("overview")}><CircleGauge size={18}/> Visão geral</button>
+        <button className={`side-item ${activeSection === "clients" ? "active" : ""}`} onClick={() => setActiveSection("clients")}><Network size={18}/> Clientes <span>{clients.length}</span></button>
+        <button className={`side-item ${activeSection === "automations" ? "active" : ""}`} onClick={() => setActiveSection("automations")}><Bot size={18}/> Automações <span>{clients.filter(client => client.billing_messages_enabled).length}</span></button>
         <div className="side-spacer" />
         <div className="system-card"><span><i /> SISTEMA ONLINE</span><strong>Todos os serviços operando</strong><small>Atualizado agora</small></div>
         <button className="side-exit" onClick={onExit}>← Sair do painel</button>
@@ -358,24 +378,28 @@ export function Dashboard({ onExit }: { onExit: () => void }) {
       <section className="dash-main">
         <header className="dash-header"><div><span>PAINEL OPERACIONAL</span><h1>Bom dia, Extreme.</h1></div><div className="operator"><div>ES</div><span><strong>Administrador</strong><small>Equipe Extreme</small></span></div></header>
         <div className="dash-content">
-          <div className="dash-title"><div><h2>Visão geral</h2><p>Acompanhe clientes e a saúde da sua operação.</p></div><button className="button primary" onClick={() => setModal(true)}><Plus size={17}/> Novo cliente</button></div>
-          <div className="stat-grid">
+          <div className="dash-title"><div><h2>{activeSection === "overview" ? "Visão geral" : activeSection === "clients" ? "Clientes" : "Automações"}</h2><p>{activeSection === "overview" ? "Acompanhe clientes e a saúde da sua operação." : activeSection === "clients" ? "Cadastre, consulte e acompanhe sua carteira de clientes." : "Acompanhe os lembretes automáticos de cobrança pelo WhatsApp."}</p></div>{activeSection !== "automations" && <button className="button primary" onClick={() => setModal(true)}><Plus size={17}/> Novo cliente</button>}</div>
+          {activeSection === "overview" && <div className="stat-grid">
             <div className="stat-card"><span>CLIENTES ATIVOS <Network/></span><strong>{activeClients}</strong><small>de {clients.length} clientes cadastrados</small></div>
             <div className="stat-card"><span>RECEITA MENSAL <CircleGauge/></span><strong>{revenue.toLocaleString('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0})}</strong><small>valor mensal dos contratos vigentes</small></div>
             <div className="stat-card"><span>EM ONBOARDING <Zap/></span><strong>{onboardingClients}</strong><small>projetos em implantação</small></div>
             <div className="stat-card accent"><span>CLIENTES PAUSADOS <Sparkles/></span><strong>{pausedClients}</strong><small>contratos temporariamente pausados</small></div>
-          </div>
-          <div className="client-panel">
-            <div className="client-panel-head"><div><h3>Clientes</h3><span>{clients.length} registros</span></div><label className="search"><Search size={16}/><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Buscar cliente..."/></label></div>
+          </div>}
+          {activeSection !== "automations" && <div className="client-panel">
+            <div className="client-panel-head"><div><h3>{activeSection === "overview" ? "Clientes recentes" : "Todos os clientes"}</h3><span>{clients.length} registros</span></div><label className="search"><Search size={16}/><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Buscar cliente..."/></label></div>
             {clientsError && <div className="panel-message error">{clientsError} <button onClick={() => void loadClients()}>Tentar novamente</button></div>}
             <div className="table-wrap"><table><thead><tr><th>CLIENTE</th><th>SOLUÇÃO</th><th>STATUS</th><th>VALOR / MÊS</th><th>COBRANÇA</th><th>SISTEMA</th><th>CONTATO</th></tr></thead><tbody>
-              {loadingClients ? <tr><td className="table-state" colSpan={7}>Carregando clientes da API...</td></tr> : filtered.length === 0 ? <tr><td className="table-state" colSpan={7}>{query ? "Nenhum cliente encontrado." : "Nenhum cliente cadastrado ainda."}</td></tr> : filtered.map(client => <tr key={client.id}><td><span className="avatar">{client.company.slice(0,2).toUpperCase()}</span><div><strong>{client.company}</strong><small>{client.full_name}</small></div></td><td>{client.service}</td><td><span className={`status ${client.status.toLowerCase()}`}><i/>{client.status}</span></td><td><strong>{Number(client.monthly_value).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}</strong></td><td><span className="contact-cell">Dia {client.billing_day || "—"}<small>{client.billing_messages_enabled ? "WhatsApp automático" : "Envio desativado"}</small></span></td><td>{client.system_url ? <a className="system-link" href={client.system_url} target="_blank" rel="noreferrer">Abrir sistema <ArrowUpRight size={13}/></a> : "—"}</td><td><span className="contact-cell">{client.email}<small>{client.phone}</small></span></td></tr>)}
+              {loadingClients ? <tr><td className="table-state" colSpan={7}>Carregando clientes da API...</td></tr> : filtered.length === 0 ? <tr><td className="table-state" colSpan={7}>{query ? "Nenhum cliente encontrado." : "Nenhum cliente cadastrado ainda."}</td></tr> : filtered.map(client => <tr key={client.id}><td><span className="avatar">{client.company.slice(0,2).toUpperCase()}</span><div><strong>{client.company}</strong><small>{client.full_name}</small></div></td><td>{client.service}</td><td><span className={`status ${client.status.toLowerCase()}`}><i/>{client.status}</span></td><td><strong>{Number(client.monthly_value).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}</strong></td><td><span className="contact-cell">Dia {client.billing_day || "—"}<small>{client.billing_messages_enabled ? "WhatsApp automático" : "Envio desativado"}</small></span></td><td>{client.system_url ? <a className="system-link" href={client.system_url} target="_blank" rel="noreferrer">Abrir sistema <ArrowUpRight size={13}/></a> : "—"}</td><td><span className="contact-cell">{client.email || "Sem e-mail"}<small>{client.phone}</small></span></td></tr>)}
             </tbody></table></div>
-          </div>
+          </div>}
+          {activeSection === "automations" && <div className="automation-grid">
+            <div className="automation-summary"><div className="automation-icon"><Bot/></div><span>COBRANÇA VIA WHATSAPP</span><strong>{clients.filter(client => client.billing_messages_enabled).length} cliente(s) habilitado(s)</strong><p>Os lembretes são processados no dia de cobrança configurado para cada cliente. Um mesmo cliente não recebe mensagens duplicadas no dia.</p></div>
+            <div className="client-panel"><div className="client-panel-head"><div><h3>Agenda de cobranças</h3><span>{clients.filter(client => client.billing_messages_enabled).length} automações</span></div></div><div className="table-wrap"><table><thead><tr><th>CLIENTE</th><th>WHATSAPP</th><th>DIA</th><th>VALOR</th><th>STATUS</th></tr></thead><tbody>{loadingClients ? <tr><td className="table-state" colSpan={5}>Carregando automações...</td></tr> : clients.filter(client => client.billing_messages_enabled).length === 0 ? <tr><td className="table-state" colSpan={5}>Nenhuma cobrança automática habilitada.</td></tr> : clients.filter(client => client.billing_messages_enabled).map(client => <tr key={client.id}><td><strong>{client.company}</strong></td><td>{client.phone}</td><td>Todo dia {client.billing_day}</td><td><strong>{Number(client.monthly_value).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</strong></td><td><span className="status ativo"><i/>Ativa</span></td></tr>)}</tbody></table></div></div>
+          </div>}
         </div>
       </section>
       {notice && <div className="toast"><Check size={17}/>{notice}</div>}
-      {modal && <div className="modal-backdrop" role="presentation" onMouseDown={e => e.target === e.currentTarget && !savingClient && setModal(false)}><div className="modal"><div className="modal-head"><div><span>NOVO REGISTRO</span><h2>Cadastrar cliente</h2></div><button disabled={savingClient} onClick={() => setModal(false)} aria-label="Fechar"><X/></button></div><form onSubmit={saveClient}><div className="form-grid"><label>Nome completo<input required name="name" placeholder="Ex: Ana Martins"/></label><label>Empresa<input required name="company" placeholder="Ex: Acme Ltda."/></label><label>E-mail<input required type="email" name="email" placeholder="ana@empresa.com"/></label><label>Telefone / WhatsApp<input required name="phone" placeholder="(84) 99999-9999"/></label><label>Solução<select name="service"><option>Agente de IA</option><option>Automação</option><option>Software sob medida</option><option>Integrações</option></select></label><label>Valor mensal<input required min="0" step="0.01" type="number" name="value" placeholder="5000"/></label><label>Link do sistema<input type="url" name="system_url" placeholder="https://sistema.cliente.com"/></label><label>Dia da cobrança<input required min="1" max="31" type="number" name="billing_day" placeholder="10"/></label><label className="check-field"><input type="checkbox" name="billing_messages_enabled"/> Enviar cobrança automática pelo WhatsApp</label></div><div className="form-note"><ShieldCheck size={16}/> Os dados serão armazenados com segurança na API Extreme.</div><button disabled={savingClient} className="button primary form-submit" type="submit">{savingClient ? "Salvando..." : <>Cadastrar cliente <ArrowUpRight size={17}/></>}</button></form></div></div>}
+      {modal && <div className="modal-backdrop" role="presentation" onMouseDown={e => e.target === e.currentTarget && !savingClient && setModal(false)}><div className="modal"><div className="modal-head"><div><span>NOVO REGISTRO</span><h2>Cadastrar cliente</h2></div><button disabled={savingClient} onClick={() => setModal(false)} aria-label="Fechar"><X/></button></div><form onSubmit={saveClient}><div className="form-grid"><label>Nome completo<input required name="name" placeholder="Ex: Ana Martins"/></label><label>Empresa<input required name="company" placeholder="Ex: Acme Ltda."/></label><label>E-mail (opcional)<input type="email" name="email" placeholder="ana@empresa.com"/></label><label>Telefone / WhatsApp<input required inputMode="numeric" maxLength={15} name="phone" placeholder="(84) 99999-9999" onInput={event => { event.currentTarget.value = formatPhone(event.currentTarget.value); }}/></label><label>Solução<select name="service"><option>Agente de IA</option><option>Automação</option><option>Software sob medida</option><option>Integrações</option></select></label><label>Valor mensal<input required inputMode="numeric" type="text" name="value" defaultValue="R$ 0,00" placeholder="R$ 5.000,00" onInput={event => { event.currentTarget.value = formatBRLInput(event.currentTarget.value); }}/></label><label>Link do sistema<input type="url" name="system_url" placeholder="https://sistema.cliente.com"/></label><label>Dia da cobrança<input required min="1" max="31" type="number" name="billing_day" placeholder="10"/></label><label className="check-field"><input type="checkbox" name="billing_messages_enabled"/> Enviar cobrança automática pelo WhatsApp</label></div><div className="form-note"><ShieldCheck size={16}/> Os dados serão armazenados com segurança na API Extreme.</div><button disabled={savingClient} className="button primary form-submit" type="submit">{savingClient ? "Salvando..." : <>Cadastrar cliente <ArrowUpRight size={17}/></>}</button></form></div></div>}
     </main>
   );
 }
