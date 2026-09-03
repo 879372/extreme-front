@@ -4,7 +4,6 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import {
   ArrowUpRight,
-  Bot,
   Check,
   ChevronRight,
   CircleGauge,
@@ -13,10 +12,12 @@ import {
   Network,
   Plus,
   Search,
+  Settings,
   ShieldCheck,
   Sparkles,
   Workflow,
   X,
+  WalletCards,
   Zap,
 } from "lucide-react";
 
@@ -35,6 +36,9 @@ type Client = {
   created_at: string;
   updated_at: string;
 };
+
+type Charge = { id: number; client: number; client_company: string; client_name: string; client_phone: string; due_date: string; amount: string; status: "Pendente" | "Pago"; paid_at: string | null };
+type BillingSettings = { id?: number; pix_key: string; message_template: string };
 
 const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
@@ -300,8 +304,10 @@ function PublicSite() {
 }
 
 export function Dashboard({ onExit }: { onExit: () => void }) {
-  const [activeSection, setActiveSection] = useState<"overview" | "clients" | "automations">("overview");
+  const [activeSection, setActiveSection] = useState<"overview" | "clients" | "charges" | "settings">("overview");
   const [clients, setClients] = useState<Client[]>([]);
+  const [charges, setCharges] = useState<Charge[]>([]);
+  const [billingSettings, setBillingSettings] = useState<BillingSettings>({ pix_key: "", message_template: "Olá, {name}! A mensalidade de {value} da {company} está pendente. Chave PIX: {pix_key}. Obrigado! — Extreme Software" });
   const [query, setQuery] = useState("");
   const [modal, setModal] = useState(false);
   const [notice, setNotice] = useState("");
@@ -313,6 +319,7 @@ export function Dashboard({ onExit }: { onExit: () => void }) {
   const activeClients = clients.filter(c => c.status === "Ativo").length;
   const onboardingClients = clients.filter(c => c.status === "Onboarding").length;
   const pausedClients = clients.filter(c => c.status === "Pausado").length;
+  const pendingCharges = charges.filter(charge => charge.status === "Pendente");
 
   const loadClients = async () => {
     const token = sessionStorage.getItem("extreme_auth_token");
@@ -335,6 +342,52 @@ export function Dashboard({ onExit }: { onExit: () => void }) {
   // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
   useEffect(() => { void loadClients(); }, []);
 
+  useEffect(() => {
+    const token = sessionStorage.getItem("extreme_auth_token");
+    Promise.all([
+      fetch(`${apiUrl}/api/charges/`, { headers: { Authorization: `Token ${token}` } }),
+      fetch(`${apiUrl}/api/billing-settings/`, { headers: { Authorization: `Token ${token}` } }),
+    ]).then(async ([chargesResponse, settingsResponse]) => {
+      if (chargesResponse.ok) setCharges(await chargesResponse.json());
+      if (settingsResponse.ok) {
+        const settings: BillingSettings[] = await settingsResponse.json();
+        if (settings[0]) setBillingSettings(settings[0]);
+      }
+    }).catch(() => setClientsError("Não foi possível carregar os dados financeiros."));
+  }, []);
+
+  const createCharge = async (client: Client) => {
+    const token = sessionStorage.getItem("extreme_auth_token");
+    const now = new Date();
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const dueDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(Math.min(client.billing_day || 1, lastDay)).padStart(2, "0")}`;
+    const response = await fetch(`${apiUrl}/api/charges/`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Token ${token}` }, body: JSON.stringify({ client: client.id, due_date: dueDate, amount: client.monthly_value, status: "Pendente" }) });
+    if (!response.ok) { setNotice("Essa cobrança já existe ou não pôde ser criada."); return; }
+    const charge: Charge = await response.json();
+    setCharges(previous => [charge, ...previous]);
+    setNotice(`Cobrança de ${client.company} criada.`);
+  };
+
+  const markAsPaid = async (charge: Charge) => {
+    const token = sessionStorage.getItem("extreme_auth_token");
+    const response = await fetch(`${apiUrl}/api/charges/${charge.id}/`, { method: "PATCH", headers: { "Content-Type": "application/json", Authorization: `Token ${token}` }, body: JSON.stringify({ status: "Pago" }) });
+    if (!response.ok) { setNotice("Não foi possível dar baixa."); return; }
+    const updated: Charge = await response.json();
+    setCharges(previous => previous.map(item => item.id === updated.id ? updated : item));
+    setNotice(`Pagamento de ${charge.client_company} confirmado.`);
+  };
+
+  const saveBillingSettings = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const token = sessionStorage.getItem("extreme_auth_token");
+    const method = billingSettings.id ? "PATCH" : "POST";
+    const endpoint = billingSettings.id ? `${apiUrl}/api/billing-settings/${billingSettings.id}/` : `${apiUrl}/api/billing-settings/`;
+    const response = await fetch(endpoint, { method, headers: { "Content-Type": "application/json", Authorization: `Token ${token}` }, body: JSON.stringify(billingSettings) });
+    if (!response.ok) { setNotice("Não foi possível salvar as configurações."); return; }
+    setBillingSettings(await response.json());
+    setNotice("Configurações de cobrança salvas.");
+  };
+
   const saveClient = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
@@ -344,7 +397,7 @@ export function Dashboard({ onExit }: { onExit: () => void }) {
       const token = sessionStorage.getItem("extreme_auth_token");
       const company = String(form.get("company"));
       const email = String(form.get("email") || "").trim();
-      const response = await fetch(`${apiUrl}/api/clients/`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Token ${token}` }, body: JSON.stringify({ full_name: form.get("name"), company, email: email || null, phone: form.get("phone"), service: form.get("service"), monthly_value: parseBRL(form.get("value")), system_url: form.get("system_url"), billing_day: Number(form.get("billing_day")), billing_messages_enabled: form.get("billing_messages_enabled") === "on", status: "Onboarding" }) });
+      const response = await fetch(`${apiUrl}/api/clients/`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Token ${token}` }, body: JSON.stringify({ full_name: form.get("name"), company, email: email || null, phone: form.get("phone"), service: form.get("service"), monthly_value: parseBRL(form.get("value")), system_url: form.get("system_url"), billing_day: Number(form.get("billing_day")), status: "Onboarding" }) });
       if (response.status === 401 || response.status === 403) { onExit(); return; }
       if (!response.ok) {
         const details = await response.json().catch(() => null);
@@ -370,7 +423,8 @@ export function Dashboard({ onExit }: { onExit: () => void }) {
         <div className="side-label">OPERAÇÃO</div>
         <button className={`side-item ${activeSection === "overview" ? "active" : ""}`} onClick={() => setActiveSection("overview")}><CircleGauge size={18}/> Visão geral</button>
         <button className={`side-item ${activeSection === "clients" ? "active" : ""}`} onClick={() => setActiveSection("clients")}><Network size={18}/> Clientes <span>{clients.length}</span></button>
-        <button className={`side-item ${activeSection === "automations" ? "active" : ""}`} onClick={() => setActiveSection("automations")}><Bot size={18}/> Automações <span>{clients.filter(client => client.billing_messages_enabled).length}</span></button>
+        <button className={`side-item ${activeSection === "charges" ? "active" : ""}`} onClick={() => setActiveSection("charges")}><WalletCards size={18}/> Cobranças <span>{pendingCharges.length}</span></button>
+        <button className={`side-item ${activeSection === "settings" ? "active" : ""}`} onClick={() => setActiveSection("settings")}><Settings size={18}/> Configurações</button>
         <div className="side-spacer" />
         <div className="system-card"><span><i /> SISTEMA ONLINE</span><strong>Todos os serviços operando</strong><small>Atualizado agora</small></div>
         <button className="side-exit" onClick={onExit}>← Sair do painel</button>
@@ -378,28 +432,24 @@ export function Dashboard({ onExit }: { onExit: () => void }) {
       <section className="dash-main">
         <header className="dash-header"><div><span>PAINEL OPERACIONAL</span><h1>Bom dia, Extreme.</h1></div><div className="operator"><div>ES</div><span><strong>Administrador</strong><small>Equipe Extreme</small></span></div></header>
         <div className="dash-content">
-          <div className="dash-title"><div><h2>{activeSection === "overview" ? "Visão geral" : activeSection === "clients" ? "Clientes" : "Automações"}</h2><p>{activeSection === "overview" ? "Acompanhe clientes e a saúde da sua operação." : activeSection === "clients" ? "Cadastre, consulte e acompanhe sua carteira de clientes." : "Acompanhe os lembretes automáticos de cobrança pelo WhatsApp."}</p></div>{activeSection !== "automations" && <button className="button primary" onClick={() => setModal(true)}><Plus size={17}/> Novo cliente</button>}</div>
+          <div className="dash-title"><div><h2>{activeSection === "overview" ? "Visão geral" : activeSection === "clients" ? "Clientes" : activeSection === "charges" ? "Cobranças" : "Configurações"}</h2><p>{activeSection === "overview" ? "Acompanhe clientes e a saúde da sua operação." : activeSection === "clients" ? "Sua carteira organizada em cards." : activeSection === "charges" ? "Controle vencimentos e dê baixa nos pagamentos." : "Configure PIX e a mensagem enviada aos clientes."}</p></div>{activeSection === "clients" && <button className="button primary" onClick={() => setModal(true)}><Plus size={17}/> Novo cliente</button>}</div>
           {activeSection === "overview" && <div className="stat-grid">
             <div className="stat-card"><span>CLIENTES ATIVOS <Network/></span><strong>{activeClients}</strong><small>de {clients.length} clientes cadastrados</small></div>
             <div className="stat-card"><span>RECEITA MENSAL <CircleGauge/></span><strong>{revenue.toLocaleString('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0})}</strong><small>valor mensal dos contratos vigentes</small></div>
             <div className="stat-card"><span>EM ONBOARDING <Zap/></span><strong>{onboardingClients}</strong><small>projetos em implantação</small></div>
             <div className="stat-card accent"><span>CLIENTES PAUSADOS <Sparkles/></span><strong>{pausedClients}</strong><small>contratos temporariamente pausados</small></div>
           </div>}
-          {activeSection !== "automations" && <div className="client-panel">
+          {(activeSection === "overview" || activeSection === "clients") && <div className="client-panel card-panel">
             <div className="client-panel-head"><div><h3>{activeSection === "overview" ? "Clientes recentes" : "Todos os clientes"}</h3><span>{clients.length} registros</span></div><label className="search"><Search size={16}/><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Buscar cliente..."/></label></div>
             {clientsError && <div className="panel-message error">{clientsError} <button onClick={() => void loadClients()}>Tentar novamente</button></div>}
-            <div className="table-wrap"><table><thead><tr><th>CLIENTE</th><th>SOLUÇÃO</th><th>STATUS</th><th>VALOR / MÊS</th><th>COBRANÇA</th><th>SISTEMA</th><th>CONTATO</th></tr></thead><tbody>
-              {loadingClients ? <tr><td className="table-state" colSpan={7}>Carregando clientes da API...</td></tr> : filtered.length === 0 ? <tr><td className="table-state" colSpan={7}>{query ? "Nenhum cliente encontrado." : "Nenhum cliente cadastrado ainda."}</td></tr> : filtered.map(client => <tr key={client.id}><td><span className="avatar">{client.company.slice(0,2).toUpperCase()}</span><div><strong>{client.company}</strong><small>{client.full_name}</small></div></td><td>{client.service}</td><td><span className={`status ${client.status.toLowerCase()}`}><i/>{client.status}</span></td><td><strong>{Number(client.monthly_value).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}</strong></td><td><span className="contact-cell">Dia {client.billing_day || "—"}<small>{client.billing_messages_enabled ? "WhatsApp automático" : "Envio desativado"}</small></span></td><td>{client.system_url ? <a className="system-link" href={client.system_url} target="_blank" rel="noreferrer">Abrir sistema <ArrowUpRight size={13}/></a> : "—"}</td><td><span className="contact-cell">{client.email || "Sem e-mail"}<small>{client.phone}</small></span></td></tr>)}
-            </tbody></table></div>
+            <div className="info-card-grid">{loadingClients ? <div className="empty-card">Carregando clientes...</div> : filtered.length === 0 ? <div className="empty-card">{query ? "Nenhum cliente encontrado." : "Nenhum cliente cadastrado ainda."}</div> : filtered.map(client => <article className="client-info-card" key={client.id}><div className="client-card-head"><span className="avatar">{client.company.slice(0,2).toUpperCase()}</span><div><h3>{client.company}</h3><p>{client.full_name}</p></div><span className={`status ${client.status.toLowerCase()}`}><i/>{client.status}</span></div><div className="client-card-value"><small>MENSALIDADE</small><strong>{Number(client.monthly_value).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</strong></div><div className="client-card-details"><span><small>SOLUÇÃO</small>{client.service}</span><span><small>VENCIMENTO</small>Dia {client.billing_day || "—"}</span><span><small>WHATSAPP</small>{client.phone}</span><span><small>E-MAIL</small>{client.email || "Não informado"}</span></div><div className="client-card-actions">{client.system_url && <a href={client.system_url} target="_blank" rel="noreferrer">Abrir sistema <ArrowUpRight size={14}/></a>}<button onClick={() => void createCharge(client)}>Gerar cobrança</button></div></article>)}</div>
           </div>}
-          {activeSection === "automations" && <div className="automation-grid">
-            <div className="automation-summary"><div className="automation-icon"><Bot/></div><span>COBRANÇA VIA WHATSAPP</span><strong>{clients.filter(client => client.billing_messages_enabled).length} cliente(s) habilitado(s)</strong><p>Os lembretes são processados no dia de cobrança configurado para cada cliente. Um mesmo cliente não recebe mensagens duplicadas no dia.</p></div>
-            <div className="client-panel"><div className="client-panel-head"><div><h3>Agenda de cobranças</h3><span>{clients.filter(client => client.billing_messages_enabled).length} automações</span></div></div><div className="table-wrap"><table><thead><tr><th>CLIENTE</th><th>WHATSAPP</th><th>DIA</th><th>VALOR</th><th>STATUS</th></tr></thead><tbody>{loadingClients ? <tr><td className="table-state" colSpan={5}>Carregando automações...</td></tr> : clients.filter(client => client.billing_messages_enabled).length === 0 ? <tr><td className="table-state" colSpan={5}>Nenhuma cobrança automática habilitada.</td></tr> : clients.filter(client => client.billing_messages_enabled).map(client => <tr key={client.id}><td><strong>{client.company}</strong></td><td>{client.phone}</td><td>Todo dia {client.billing_day}</td><td><strong>{Number(client.monthly_value).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</strong></td><td><span className="status ativo"><i/>Ativa</span></td></tr>)}</tbody></table></div></div>
-          </div>}
+          {activeSection === "charges" && <div className="info-card-grid charge-grid">{charges.length === 0 ? <div className="empty-card">Nenhuma cobrança gerada.</div> : charges.map(charge => <article className={`charge-card ${charge.status.toLowerCase()}`} key={charge.id}><div className="charge-card-head"><div><small>VENCIMENTO</small><strong>{new Date(`${charge.due_date}T12:00:00`).toLocaleDateString("pt-BR")}</strong></div><span className={`status ${charge.status === "Pago" ? "ativo" : "onboarding"}`}><i/>{charge.status}</span></div><h3>{charge.client_company}</h3><p>{charge.client_name} · {charge.client_phone}</p><strong className="charge-amount">{Number(charge.amount).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</strong>{charge.status === "Pendente" ? <button className="button primary" onClick={() => void markAsPaid(charge)}><Check size={15}/> Dar baixa</button> : <small className="paid-date">Pago em {charge.paid_at ? new Date(charge.paid_at).toLocaleDateString("pt-BR") : "—"}</small>}</article>)}</div>}
+          {activeSection === "settings" && <form className="settings-card" onSubmit={saveBillingSettings}><div className="settings-icon"><Settings/></div><label>Chave PIX<input value={billingSettings.pix_key} onChange={event => setBillingSettings(current => ({ ...current, pix_key: event.target.value }))} placeholder="CPF, CNPJ, telefone, e-mail ou chave aleatória"/></label><label>Mensagem de cobrança<textarea rows={7} value={billingSettings.message_template} onChange={event => setBillingSettings(current => ({ ...current, message_template: event.target.value }))}/></label><div className="template-help">Variáveis disponíveis: <code>{`{name}`}</code> <code>{`{company}`}</code> <code>{`{value}`}</code> <code>{`{pix_key}`}</code></div><button className="button primary" type="submit">Salvar configurações</button></form>}
         </div>
       </section>
       {notice && <div className="toast"><Check size={17}/>{notice}</div>}
-      {modal && <div className="modal-backdrop" role="presentation" onMouseDown={e => e.target === e.currentTarget && !savingClient && setModal(false)}><div className="modal"><div className="modal-head"><div><span>NOVO REGISTRO</span><h2>Cadastrar cliente</h2></div><button disabled={savingClient} onClick={() => setModal(false)} aria-label="Fechar"><X/></button></div><form onSubmit={saveClient}><div className="form-grid"><label>Nome completo<input required name="name" placeholder="Ex: Ana Martins"/></label><label>Empresa<input required name="company" placeholder="Ex: Acme Ltda."/></label><label>E-mail (opcional)<input type="email" name="email" placeholder="ana@empresa.com"/></label><label>Telefone / WhatsApp<input required inputMode="numeric" maxLength={15} name="phone" placeholder="(84) 99999-9999" onInput={event => { event.currentTarget.value = formatPhone(event.currentTarget.value); }}/></label><label>Solução<select name="service"><option>Agente de IA</option><option>Automação</option><option>Software sob medida</option><option>Integrações</option></select></label><label>Valor mensal<input required inputMode="numeric" type="text" name="value" defaultValue="R$ 0,00" placeholder="R$ 5.000,00" onInput={event => { event.currentTarget.value = formatBRLInput(event.currentTarget.value); }}/></label><label>Link do sistema<input type="url" name="system_url" placeholder="https://sistema.cliente.com"/></label><label>Dia da cobrança<input required min="1" max="31" type="number" name="billing_day" placeholder="10"/></label><label className="check-field"><input type="checkbox" name="billing_messages_enabled"/> Enviar cobrança automática pelo WhatsApp</label></div><div className="form-note"><ShieldCheck size={16}/> Os dados serão armazenados com segurança na API Extreme.</div><button disabled={savingClient} className="button primary form-submit" type="submit">{savingClient ? "Salvando..." : <>Cadastrar cliente <ArrowUpRight size={17}/></>}</button></form></div></div>}
+      {modal && <div className="modal-backdrop" role="presentation" onMouseDown={e => e.target === e.currentTarget && !savingClient && setModal(false)}><div className="modal"><div className="modal-head"><div><span>NOVO REGISTRO</span><h2>Cadastrar cliente</h2></div><button disabled={savingClient} onClick={() => setModal(false)} aria-label="Fechar"><X/></button></div><form onSubmit={saveClient}><div className="form-grid"><label>Nome completo<input required name="name" placeholder="Ex: Ana Martins"/></label><label>Empresa<input required name="company" placeholder="Ex: Acme Ltda."/></label><label>E-mail (opcional)<input type="email" name="email" placeholder="ana@empresa.com"/></label><label>Telefone / WhatsApp<input required inputMode="numeric" maxLength={15} name="phone" placeholder="(84) 99999-9999" onInput={event => { event.currentTarget.value = formatPhone(event.currentTarget.value); }}/></label><label>Solução<select name="service"><option>Agente de IA</option><option>Automação</option><option>Software sob medida</option><option>Integrações</option></select></label><label>Valor mensal<input required inputMode="numeric" type="text" name="value" defaultValue="R$ 0,00" placeholder="R$ 5.000,00" onInput={event => { event.currentTarget.value = formatBRLInput(event.currentTarget.value); }}/></label><label>Link do sistema<input type="url" name="system_url" placeholder="https://sistema.cliente.com"/></label><label>Dia da cobrança<input required min="1" max="31" type="number" name="billing_day" placeholder="10"/></label></div><div className="form-note"><ShieldCheck size={16}/> Os dados serão armazenados com segurança na API Extreme.</div><button disabled={savingClient} className="button primary form-submit" type="submit">{savingClient ? "Salvando..." : <>Cadastrar cliente <ArrowUpRight size={17}/></>}</button></form></div></div>}
     </main>
   );
 }
