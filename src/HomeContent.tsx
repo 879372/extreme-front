@@ -5,7 +5,6 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import {
   ArrowUpRight,
   Bot,
-  BrainCircuit,
   Check,
   ChevronRight,
   CircleGauge,
@@ -23,21 +22,18 @@ import {
 
 type Client = {
   id: number;
-  name: string;
+  full_name: string;
   company: string;
   email: string;
   phone: string;
   service: string;
   status: "Ativo" | "Onboarding" | "Pausado";
-  value: number;
+  monthly_value: string;
+  created_at: string;
+  updated_at: string;
 };
 
-const initialClients: Client[] = [
-  { id: 1, name: "Marina Costa", company: "Nexo Saúde", email: "marina@nexosaude.com", phone: "(85) 99942-1801", service: "Agente de IA", status: "Ativo", value: 4800 },
-  { id: 2, name: "Rafael Nunes", company: "Orbe Logística", email: "rafael@orbelog.com", phone: "(85) 98811-2402", service: "Automação", status: "Onboarding", value: 6200 },
-  { id: 3, name: "Camila Prado", company: "Lumina Solar", email: "camila@luminasolar.com", phone: "(85) 99171-0030", service: "Software sob medida", status: "Ativo", value: 8500 },
-  { id: 4, name: "Diego Alves", company: "Vértice Imóveis", email: "diego@vertice.com", phone: "(85) 99732-0041", service: "Integrações", status: "Pausado", value: 3200 },
-];
+const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 const services = [
   { icon: Database, number: "01", title: "Sistema sob medida", text: "Um sistema feito para o jeito que sua empresa trabalha: clientes, vendas, estoque, serviços e financeiro em um só lugar." },
@@ -283,28 +279,65 @@ function PublicSite() {
 }
 
 export function Dashboard({ onExit }: { onExit: () => void }) {
-  const [clients, setClients] = useState<Client[]>(initialClients);
+  const [clients, setClients] = useState<Client[]>([]);
   const [query, setQuery] = useState("");
   const [modal, setModal] = useState(false);
   const [notice, setNotice] = useState("");
-  const filtered = useMemo(() => clients.filter(c => `${c.name} ${c.company} ${c.email}`.toLowerCase().includes(query.toLowerCase())), [clients, query]);
-  const revenue = clients.filter(c => c.status !== "Pausado").reduce((sum, c) => sum + c.value, 0);
+  const [loadingClients, setLoadingClients] = useState(true);
+  const [savingClient, setSavingClient] = useState(false);
+  const [clientsError, setClientsError] = useState("");
+  const filtered = useMemo(() => clients.filter(c => `${c.full_name} ${c.company} ${c.email}`.toLowerCase().includes(query.toLowerCase())), [clients, query]);
+  const revenue = clients.filter(c => c.status !== "Pausado").reduce((sum, c) => sum + Number(c.monthly_value), 0);
+  const activeClients = clients.filter(c => c.status === "Ativo").length;
+  const onboardingClients = clients.filter(c => c.status === "Onboarding").length;
+  const pausedClients = clients.filter(c => c.status === "Pausado").length;
+
+  const loadClients = async () => {
+    const token = sessionStorage.getItem("extreme_auth_token");
+    setLoadingClients(true);
+    setClientsError("");
+    try {
+      const response = await fetch(`${apiUrl}/api/clients/`, { headers: { Authorization: `Token ${token}` } });
+      if (response.status === 401 || response.status === 403) { onExit(); return; }
+      if (!response.ok) throw new Error("Não foi possível carregar os clientes.");
+      const data: Client[] | { results: Client[] } = await response.json();
+      setClients(Array.isArray(data) ? data : data.results);
+    } catch (requestError) {
+      setClientsError(requestError instanceof Error ? requestError.message : "Erro ao acessar a API.");
+    } finally {
+      setLoadingClients(false);
+    }
+  };
+
+  // A primeira carga sincroniza o painel com a API protegida.
+  // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
+  useEffect(() => { void loadClients(); }, []);
 
   const saveClient = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    const client: Client = {
-      id: Date.now(), name: String(form.get("name")), company: String(form.get("company")), email: String(form.get("email")), phone: String(form.get("phone")), service: String(form.get("service")), status: "Onboarding", value: Number(form.get("value")),
-    };
+    setSavingClient(true);
+    setClientsError("");
     try {
       const token = sessionStorage.getItem("extreme_auth_token");
-      const response = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:8000"}/api/clients/`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Token ${token}` }, body: JSON.stringify({ ...client, monthly_value: client.value, full_name: client.name }) });
-      if (response.ok) { const saved = await response.json(); client.id = saved.id; }
-    } catch { /* local preview stays functional without the API */ }
-    setClients(prev => [client, ...prev]);
-    setModal(false);
-    setNotice(`${client.company} foi adicionada com sucesso.`);
-    setTimeout(() => setNotice(""), 3500);
+      const company = String(form.get("company"));
+      const response = await fetch(`${apiUrl}/api/clients/`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Token ${token}` }, body: JSON.stringify({ full_name: form.get("name"), company, email: form.get("email"), phone: form.get("phone"), service: form.get("service"), monthly_value: form.get("value"), status: "Onboarding" }) });
+      if (response.status === 401 || response.status === 403) { onExit(); return; }
+      if (!response.ok) {
+        const details = await response.json().catch(() => null);
+        const firstError = details && Object.values(details).flat()[0];
+        throw new Error(typeof firstError === "string" ? firstError : "Não foi possível cadastrar o cliente.");
+      }
+      const saved: Client = await response.json();
+      setClients(prev => [saved, ...prev]);
+      setModal(false);
+      setNotice(`${company} foi adicionada com sucesso.`);
+      setTimeout(() => setNotice(""), 3500);
+    } catch (requestError) {
+      setClientsError(requestError instanceof Error ? requestError.message : "Erro ao acessar a API.");
+    } finally {
+      setSavingClient(false);
+    }
   };
 
   return (
@@ -324,19 +357,22 @@ export function Dashboard({ onExit }: { onExit: () => void }) {
         <div className="dash-content">
           <div className="dash-title"><div><h2>Visão geral</h2><p>Acompanhe clientes e a saúde da sua operação.</p></div><button className="button primary" onClick={() => setModal(true)}><Plus size={17}/> Novo cliente</button></div>
           <div className="stat-grid">
-            <div className="stat-card"><span>CLIENTES ATIVOS <Network/></span><strong>{clients.filter(c => c.status === "Ativo").length}</strong><small><b>+12%</b> este mês</small></div>
-            <div className="stat-card"><span>RECEITA MENSAL <CircleGauge/></span><strong>{revenue.toLocaleString('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0})}</strong><small><b>+8,4%</b> vs. mês anterior</small></div>
-            <div className="stat-card"><span>AUTOMAÇÕES <Zap/></span><strong>18</strong><small><i/> 17 operando normalmente</small></div>
-            <div className="stat-card accent"><span>HORAS ECONOMIZADAS <Sparkles/></span><strong>286h</strong><small>nos últimos 30 dias</small></div>
+            <div className="stat-card"><span>CLIENTES ATIVOS <Network/></span><strong>{activeClients}</strong><small>de {clients.length} clientes cadastrados</small></div>
+            <div className="stat-card"><span>RECEITA MENSAL <CircleGauge/></span><strong>{revenue.toLocaleString('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0})}</strong><small>valor mensal dos contratos vigentes</small></div>
+            <div className="stat-card"><span>EM ONBOARDING <Zap/></span><strong>{onboardingClients}</strong><small>projetos em implantação</small></div>
+            <div className="stat-card accent"><span>CLIENTES PAUSADOS <Sparkles/></span><strong>{pausedClients}</strong><small>contratos temporariamente pausados</small></div>
           </div>
           <div className="client-panel">
             <div className="client-panel-head"><div><h3>Clientes</h3><span>{clients.length} registros</span></div><label className="search"><Search size={16}/><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Buscar cliente..."/></label></div>
-            <div className="table-wrap"><table><thead><tr><th>CLIENTE</th><th>SOLUÇÃO</th><th>STATUS</th><th>VALOR / MÊS</th><th>CONTATO</th></tr></thead><tbody>{filtered.map(client => <tr key={client.id}><td><span className="avatar">{client.company.slice(0,2).toUpperCase()}</span><div><strong>{client.company}</strong><small>{client.name}</small></div></td><td>{client.service}</td><td><span className={`status ${client.status.toLowerCase()}`}><i/>{client.status}</span></td><td><strong>{client.value.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}</strong></td><td><span className="contact-cell">{client.email}<small>{client.phone}</small></span></td></tr>)}</tbody></table></div>
+            {clientsError && <div className="panel-message error">{clientsError} <button onClick={() => void loadClients()}>Tentar novamente</button></div>}
+            <div className="table-wrap"><table><thead><tr><th>CLIENTE</th><th>SOLUÇÃO</th><th>STATUS</th><th>VALOR / MÊS</th><th>CONTATO</th></tr></thead><tbody>
+              {loadingClients ? <tr><td className="table-state" colSpan={5}>Carregando clientes da API...</td></tr> : filtered.length === 0 ? <tr><td className="table-state" colSpan={5}>{query ? "Nenhum cliente encontrado." : "Nenhum cliente cadastrado ainda."}</td></tr> : filtered.map(client => <tr key={client.id}><td><span className="avatar">{client.company.slice(0,2).toUpperCase()}</span><div><strong>{client.company}</strong><small>{client.full_name}</small></div></td><td>{client.service}</td><td><span className={`status ${client.status.toLowerCase()}`}><i/>{client.status}</span></td><td><strong>{Number(client.monthly_value).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}</strong></td><td><span className="contact-cell">{client.email}<small>{client.phone}</small></span></td></tr>)}
+            </tbody></table></div>
           </div>
         </div>
       </section>
       {notice && <div className="toast"><Check size={17}/>{notice}</div>}
-      {modal && <div className="modal-backdrop" onMouseDown={e => e.target === e.currentTarget && setModal(false)}><div className="modal"><div className="modal-head"><div><span>NOVO REGISTRO</span><h2>Cadastrar cliente</h2></div><button onClick={() => setModal(false)} aria-label="Fechar"><X/></button></div><form onSubmit={saveClient}><div className="form-grid"><label>Nome completo<input required name="name" placeholder="Ex: Ana Martins"/></label><label>Empresa<input required name="company" placeholder="Ex: Acme Ltda."/></label><label>E-mail<input required type="email" name="email" placeholder="ana@empresa.com"/></label><label>Telefone<input required name="phone" placeholder="(85) 99999-9999"/></label><label>Solução<select name="service"><option>Agente de IA</option><option>Automação</option><option>Software sob medida</option><option>Integrações</option></select></label><label>Valor mensal<input required min="0" type="number" name="value" placeholder="5000"/></label></div><div className="form-note"><ShieldCheck size={16}/> Os dados serão armazenados com segurança na API Extreme.</div><button className="button primary form-submit" type="submit">Cadastrar cliente <ArrowUpRight size={17}/></button></form></div></div>}
+      {modal && <div className="modal-backdrop" role="presentation" onMouseDown={e => e.target === e.currentTarget && !savingClient && setModal(false)}><div className="modal"><div className="modal-head"><div><span>NOVO REGISTRO</span><h2>Cadastrar cliente</h2></div><button disabled={savingClient} onClick={() => setModal(false)} aria-label="Fechar"><X/></button></div><form onSubmit={saveClient}><div className="form-grid"><label>Nome completo<input required name="name" placeholder="Ex: Ana Martins"/></label><label>Empresa<input required name="company" placeholder="Ex: Acme Ltda."/></label><label>E-mail<input required type="email" name="email" placeholder="ana@empresa.com"/></label><label>Telefone<input required name="phone" placeholder="(85) 99999-9999"/></label><label>Solução<select name="service"><option>Agente de IA</option><option>Automação</option><option>Software sob medida</option><option>Integrações</option></select></label><label>Valor mensal<input required min="0" step="0.01" type="number" name="value" placeholder="5000"/></label></div><div className="form-note"><ShieldCheck size={16}/> Os dados serão armazenados com segurança na API Extreme.</div><button disabled={savingClient} className="button primary form-submit" type="submit">{savingClient ? "Salvando..." : <>Cadastrar cliente <ArrowUpRight size={17}/></>}</button></form></div></div>}
     </main>
   );
 }
