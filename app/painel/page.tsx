@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Dashboard } from "../page";
+import { Dashboard } from "../home-content";
 
 export default function PainelPage() {
   const router = useRouter();

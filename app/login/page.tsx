@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, Eye, EyeOff, LockKeyhole, ShieldCheck } from "lucide-react";
-import { Brand } from "../page";
+import { Brand } from "../home-content";
 
 export default function LoginPage() {
   const router = useRouter();

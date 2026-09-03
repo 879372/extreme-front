@@ -6,6 +6,7 @@ const geist = Geist({ variable: "--font-geist", subsets: ["latin"] });
 const mono = Geist_Mono({ variable: "--font-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"),
   title: "Extreme Software — Tecnologia para organizar seu negócio",
   description: "Sistemas personalizados e acessíveis para pequenos e médios negócios organizarem a rotina, controlarem seus números e crescerem.",
   icons: { icon: "/favicon.svg" },
