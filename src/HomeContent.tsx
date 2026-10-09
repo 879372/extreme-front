@@ -222,8 +222,6 @@ function PublicSite() {
         <div className="hero-visual">
           <OrbitalScene />
           <div className="profile-frame"><img src="/kaio-profile.png" alt="José Kaio, desenvolvedor da Kaibez"/></div>
-          <div className="telemetry t-one"><span>DESENVOLVIMENTO</span><strong>SOB MEDIDA</strong><small>SOFTWARE · AUTOMAÇÃO · IA</small></div>
-          <div className="telemetry t-two"><Zap size={15} /><span>DO PROBLEMA</span><strong>À SOLUÇÃO</strong></div>
           <div className="orbit-label">KAIBEZ / TECNOLOGIA COM PROPÓSITO</div>
         </div>
         <div className="hero-index"><span>01</span><i /><small>04</small></div>
