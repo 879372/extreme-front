@@ -75,7 +75,7 @@ const clientLogos = [
   { name: "Lukinha Cell", logo: "/clients/lukinha-cell.png", sector: "Tecnologia & mobile" },
 ];
 
-const whatsappUrl = "https://wa.me/5584986276144?text=Ol%C3%A1%2C%20vim%20pelo%20site%20da%20Extreme%20Software%20e%20quero%20conhecer%20uma%20solu%C3%A7%C3%A3o%20para%20o%20meu%20neg%C3%B3cio.";
+const whatsappUrl = "https://wa.me/5584986276144?text=Ol%C3%A1%2C%20Kaio!%20Vim%20pelo%20site%20Kaibez%20e%20quero%20conversar%20sobre%20uma%20solu%C3%A7%C3%A3o.";
 
 function OrbitalScene() {
   const mount = useRef<HTMLDivElement>(null);
@@ -179,7 +179,7 @@ function OrbitalScene() {
 }
 
 export function Brand() {
-  return <a className="brand" href="#top" aria-label="Extreme Software, início"><span className="brand-mark">X</span><span>EXTREME<small>SOFTWARE</small></span></a>;
+  return <a className="brand" href="#top" aria-label="Kaibez, início"><span className="brand-mark">K</span><span>KAIBEZ<small>BY JOSÉ KAIO</small></span></a>;
 }
 
 function PublicSite() {
@@ -211,19 +211,20 @@ function PublicSite() {
 
       <section className="hero shell">
         <div className="hero-copy">
-          <div className="eyebrow"><span /> Tecnologia feita para quem empreende</div>
-          <h1>Menos papel.<br />Menos confusão.<br /><em>Mais controle.</em></h1>
-          <p>Criamos sistemas personalizados e acessíveis para pequenos e médios negócios organizarem a rotina, entenderem seus números e crescerem com segurança.</p>
+          <div className="eyebrow"><span /> José Kaio · Software, automação e IA</div>
+          <h1>Eu transformo ideias<br />e processos em<br /><em>tecnologia útil.</em></h1>
+          <p>Sou José Kaio, desenvolvedor por trás da Kaibez. Crio sistemas personalizados, automações e soluções com IA para negócios que querem trabalhar melhor e crescer com mais controle.</p>
           <div className="hero-actions">
-            <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="button primary">Quero organizar meu negócio <ArrowUpRight size={18} /></a>
-            <a href="#solucoes" className="text-link">Ver como ajudamos <ChevronRight size={17} /></a>
+            <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="button primary">Vamos criar algo juntos <ArrowUpRight size={18} /></a>
+            <a href="#solucoes" className="text-link">Conhecer meu trabalho <ChevronRight size={17} /></a>
           </div>
         </div>
         <div className="hero-visual">
           <OrbitalScene />
-          <div className="telemetry t-one"><span>VISÃO DO NEGÓCIO</span><strong>100%</strong><small>VENDAS · CAIXA · CLIENTES</small></div>
-          <div className="telemetry t-two"><Zap size={15} /><span>ROTINA ORGANIZADA</span><strong>TODO DIA</strong></div>
-          <div className="orbit-label">EXT / NEGÓCIO SOB CONTROLE</div>
+          <div className="profile-frame"><img src="/kaio-profile.png" alt="José Kaio, desenvolvedor da Kaibez"/></div>
+          <div className="telemetry t-one"><span>DESENVOLVIMENTO</span><strong>SOB MEDIDA</strong><small>SOFTWARE · AUTOMAÇÃO · IA</small></div>
+          <div className="telemetry t-two"><Zap size={15} /><span>DO PROBLEMA</span><strong>À SOLUÇÃO</strong></div>
+          <div className="orbit-label">KAIBEZ / TECNOLOGIA COM PROPÓSITO</div>
         </div>
         <div className="hero-index"><span>01</span><i /><small>04</small></div>
       </section>
@@ -239,10 +240,10 @@ function PublicSite() {
 
       <section id="clientes" className="clients-section section">
         <div className="shell clients-heading" data-reveal>
-          <div><span className="kicker">/ Quem cresce com a Extreme</span><h2>Empreendedores reais.<br /><em>Negócios mais organizados.</em></h2></div>
-          <p>Pequenas e médias empresas de diferentes segmentos que escolheram simplificar a rotina com tecnologia.</p>
+          <div><span className="kicker">/ Projetos e parcerias</span><h2>Pessoas reais.<br /><em>Soluções que fazem diferença.</em></h2></div>
+          <p>Negócios de diferentes segmentos que confiaram no meu trabalho para simplificar a rotina com tecnologia.</p>
         </div>
-        <div className="client-marquee" aria-label="Clientes da Extreme Software">
+        <div className="client-marquee" aria-label="Clientes e parceiros da Kaibez">
           <div className="marquee-fade fade-left" /><div className="marquee-fade fade-right" />
           <div className="client-track">
             {[...clientLogos, ...clientLogos].map((client, index) => (
@@ -258,8 +259,8 @@ function PublicSite() {
 
       <section id="solucoes" className="solutions shell section">
         <div className="section-head" data-reveal>
-          <div><span className="kicker">/ Como podemos ajudar</span><h2>Seu negócio organizado.<br /><em>Do seu jeito.</em></h2></div>
-          <p>Você não precisa se adaptar a um sistema complicado. Nós entendemos sua rotina e construímos uma solução simples para os seus problemas reais.</p>
+          <div><span className="kicker">/ O que eu desenvolvo</span><h2>Tecnologia feita para você.<br /><em>Do seu jeito.</em></h2></div>
+          <p>Você não precisa se adaptar a um sistema complicado. Eu entendo sua rotina e construo uma solução direta para os seus problemas reais.</p>
         </div>
         <div className="service-grid">
           {services.map(({ icon: Icon, number, title, text }) => (
@@ -274,9 +275,9 @@ function PublicSite() {
 
       <section id="metodo" className="method section">
         <div className="shell method-grid">
-          <div className="method-copy" data-reveal><span className="kicker">/ Sem complicação</span><h2>Você conhece o negócio.<br /><em>Nós organizamos a tecnologia.</em></h2><p>Não precisa entender de software. Você conta como trabalha e onde estão as dificuldades; nós transformamos isso em uma solução simples, útil e possível de pagar.</p></div>
+          <div className="method-copy" data-reveal><span className="kicker">/ Trabalho de perto</span><h2>Você conhece o negócio.<br /><em>Eu construo a tecnologia.</em></h2><p>Você me conta como trabalha e onde estão as dificuldades. Eu transformo isso em uma solução simples, útil e pensada para sua realidade.</p></div>
           <div className="pipeline" data-reveal>
-            {[['01','CONVERSA','Entendemos sua rotina, suas anotações e o que tira seu tempo.'],['02','PLANO SOB MEDIDA','Definimos o que você realmente precisa, sem funções desnecessárias.'],['03','ENTREGA SIMPLES','Construímos, mostramos cada etapa e ensinamos sua equipe a usar.'],['04','PARCERIA CONTÍNUA','Acompanhamos seu negócio e evoluímos o sistema junto com você.']].map(([n,t,d]) => <div className="pipeline-row" key={n}><span>{n}</span><div><strong>{t}</strong><p>{d}</p></div><Check size={17}/></div>)}
+            {[['01','CONVERSA','Eu entendo sua rotina, suas dificuldades e o resultado que você busca.'],['02','PLANO SOB MEDIDA','Defino o que realmente faz sentido, sem funções desnecessárias.'],['03','DESENVOLVIMENTO','Você acompanha cada etapa enquanto a solução ganha forma.'],['04','EVOLUÇÃO CONTÍNUA','Continuo por perto para melhorar o sistema junto com seu negócio.']].map(([n,t,d]) => <div className="pipeline-row" key={n}><span>{n}</span><div><strong>{t}</strong><p>{d}</p></div><Check size={17}/></div>)}
           </div>
         </div>
       </section>
@@ -291,13 +292,13 @@ function PublicSite() {
       <section id="contato" className="cta-section shell section" data-reveal>
         <div className="cta-orb"><Sparkles /></div>
         <span className="kicker">/ Vamos conversar?</span>
-        <h2>Seu negócio pode ser<br /><em>mais simples de controlar.</em></h2>
-        <p>Conte como você trabalha hoje. A primeira conversa é sem compromisso e sem linguagem complicada.</p>
-        <a className="button primary large" href={whatsappUrl} target="_blank" rel="noopener noreferrer">Conversar pelo WhatsApp <ArrowUpRight size={19}/></a>
+        <h2>Tem uma ideia ou um processo<br /><em>que precisa evoluir?</em></h2>
+        <p>Me conte o que você quer construir ou melhorar. A primeira conversa é direta, sem compromisso e sem linguagem complicada.</p>
+        <a className="button primary large" href={whatsappUrl} target="_blank" rel="noopener noreferrer">Falar com o Kaio <ArrowUpRight size={19}/></a>
       </section>
 
       <footer className="footer shell">
-        <Brand /><a href={whatsappUrl} target="_blank" rel="noopener noreferrer" aria-label="Conversar com a Extreme Software pelo WhatsApp">WhatsApp · (84) 98627-6144</a><span>© 2026 Extreme Software</span>
+        <Brand /><a href={whatsappUrl} target="_blank" rel="noopener noreferrer" aria-label="Conversar com José Kaio pelo WhatsApp">WhatsApp · (84) 98627-6144</a><span>© 2026 Kaibez · José Kaio</span>
       </footer>
     </main>
   );
@@ -307,7 +308,7 @@ export function Dashboard({ onExit }: { onExit: () => void }) {
   const [activeSection, setActiveSection] = useState<"overview" | "clients" | "charges" | "settings">("overview");
   const [clients, setClients] = useState<Client[]>([]);
   const [charges, setCharges] = useState<Charge[]>([]);
-  const [billingSettings, setBillingSettings] = useState<BillingSettings>({ pix_key: "", message_template: "Olá, {name}! A mensalidade de {value} da {company} está pendente. Chave PIX: {pix_key}. Obrigado! — Extreme Software" });
+  const [billingSettings, setBillingSettings] = useState<BillingSettings>({ pix_key: "", message_template: "Olá, {name}! A mensalidade de {value} da {company} está pendente. Chave PIX: {pix_key}. Obrigado! — Kaibez" });
   const [query, setQuery] = useState("");
   const [modal, setModal] = useState(false);
   const [notice, setNotice] = useState("");
@@ -430,7 +431,7 @@ export function Dashboard({ onExit }: { onExit: () => void }) {
         <button className="side-exit" onClick={onExit}>← Sair do painel</button>
       </aside>
       <section className="dash-main">
-        <header className="dash-header"><div><span>PAINEL OPERACIONAL</span><h1>Bom dia, Extreme.</h1></div><div className="operator"><div>ES</div><span><strong>Administrador</strong><small>Equipe Extreme</small></span></div></header>
+        <header className="dash-header"><div><span>PAINEL KAIBEZ</span><h1>Olá, Kaio.</h1></div><div className="operator"><div>JK</div><span><strong>José Kaio</strong><small>Administrador</small></span></div></header>
         <div className="dash-content">
           <div className="dash-title"><div><h2>{activeSection === "overview" ? "Visão geral" : activeSection === "clients" ? "Clientes" : activeSection === "charges" ? "Cobranças" : "Configurações"}</h2><p>{activeSection === "overview" ? "Acompanhe clientes e a saúde da sua operação." : activeSection === "clients" ? "Sua carteira organizada em cards." : activeSection === "charges" ? "Controle vencimentos e dê baixa nos pagamentos." : "Configure PIX e a mensagem enviada aos clientes."}</p></div>{activeSection === "clients" && <button className="button primary" onClick={() => setModal(true)}><Plus size={17}/> Novo cliente</button>}</div>
           {activeSection === "overview" && <div className="stat-grid">
@@ -449,7 +450,7 @@ export function Dashboard({ onExit }: { onExit: () => void }) {
         </div>
       </section>
       {notice && <div className="toast"><Check size={17}/>{notice}</div>}
-      {modal && <div className="modal-backdrop" role="presentation" onMouseDown={e => e.target === e.currentTarget && !savingClient && setModal(false)}><div className="modal"><div className="modal-head"><div><span>NOVO REGISTRO</span><h2>Cadastrar cliente</h2></div><button disabled={savingClient} onClick={() => setModal(false)} aria-label="Fechar"><X/></button></div><form onSubmit={saveClient}><div className="form-grid"><label>Nome completo<input required name="name" placeholder="Ex: Ana Martins"/></label><label>Empresa<input required name="company" placeholder="Ex: Acme Ltda."/></label><label>E-mail (opcional)<input type="email" name="email" placeholder="ana@empresa.com"/></label><label>Telefone / WhatsApp<input required inputMode="numeric" maxLength={15} name="phone" placeholder="(84) 99999-9999" onInput={event => { event.currentTarget.value = formatPhone(event.currentTarget.value); }}/></label><label>Solução<select name="service"><option>Agente de IA</option><option>Automação</option><option>Software sob medida</option><option>Integrações</option></select></label><label>Valor mensal<input required inputMode="numeric" type="text" name="value" defaultValue="R$ 0,00" placeholder="R$ 5.000,00" onInput={event => { event.currentTarget.value = formatBRLInput(event.currentTarget.value); }}/></label><label>Link do sistema<input type="url" name="system_url" placeholder="https://sistema.cliente.com"/></label><label>Dia da cobrança<input required min="1" max="31" type="number" name="billing_day" placeholder="10"/></label></div><div className="form-note"><ShieldCheck size={16}/> Os dados serão armazenados com segurança na API Extreme.</div><button disabled={savingClient} className="button primary form-submit" type="submit">{savingClient ? "Salvando..." : <>Cadastrar cliente <ArrowUpRight size={17}/></>}</button></form></div></div>}
+      {modal && <div className="modal-backdrop" role="presentation" onMouseDown={e => e.target === e.currentTarget && !savingClient && setModal(false)}><div className="modal"><div className="modal-head"><div><span>NOVO REGISTRO</span><h2>Cadastrar cliente</h2></div><button disabled={savingClient} onClick={() => setModal(false)} aria-label="Fechar"><X/></button></div><form onSubmit={saveClient}><div className="form-grid"><label>Nome completo<input required name="name" placeholder="Ex: Ana Martins"/></label><label>Empresa<input required name="company" placeholder="Ex: Acme Ltda."/></label><label>E-mail (opcional)<input type="email" name="email" placeholder="ana@empresa.com"/></label><label>Telefone / WhatsApp<input required inputMode="numeric" maxLength={15} name="phone" placeholder="(84) 99999-9999" onInput={event => { event.currentTarget.value = formatPhone(event.currentTarget.value); }}/></label><label>Solução<select name="service"><option>Agente de IA</option><option>Automação</option><option>Software sob medida</option><option>Integrações</option></select></label><label>Valor mensal<input required inputMode="numeric" type="text" name="value" defaultValue="R$ 0,00" placeholder="R$ 5.000,00" onInput={event => { event.currentTarget.value = formatBRLInput(event.currentTarget.value); }}/></label><label>Link do sistema<input type="url" name="system_url" placeholder="https://sistema.cliente.com"/></label><label>Dia da cobrança<input required min="1" max="31" type="number" name="billing_day" placeholder="10"/></label></div><div className="form-note"><ShieldCheck size={16}/> Os dados serão armazenados com segurança na API Kaibez.</div><button disabled={savingClient} className="button primary form-submit" type="submit">{savingClient ? "Salvando..." : <>Cadastrar cliente <ArrowUpRight size={17}/></>}</button></form></div></div>}
     </main>
   );
 }

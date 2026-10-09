@@ -1,4 +1,4 @@
-# Extreme Software — Frontend
+# Kaibez — Frontend
 
 Experiência web em React, Vite/Vinext, Three.js e GSAP.
 
